@@ -1,0 +1,210 @@
+syntax = "proto3";
+
+// Code From Vansh Jain
+// DS Lab 3
+// SBU ID - 116713519
+
+option go_package = "./";
+
+package proto;
+
+service BankingService {
+  rpc TransferMoney(TransferRequest) returns (Empty) {}
+  rpc SyncServerStatus(ServerStatus) returns(Empty){}
+  rpc TransferMoneyResponse(Reply) returns (Empty){}
+
+  rpc PrePrepare(PreprepareMessage) returns (PrepareMessage){}
+  rpc Prepare(PrepareResponse) returns (CommitMessage){}
+  rpc Commit(CommitResponse) returns (Empty){}
+  rpc ViewChangeMulticast(ViewChangeMessage) returns (AckMessage);
+  rpc NewViewRpc(NewViewMessage) returns (AckMessage);
+
+  rpc CrossShardPrepare(csPrepareMsg) returns (Empty);
+  rpc CrossShardCommit(csCommitMsg) returns (Empty);
+
+
+  rpc PCCommit(csCommitMsg) returns (PCResponse);
+  rpc PCAbort(csCommitMsg) returns (PCResponse);
+
+  rpc PrintBalance(printBalanceRequest) returns(PrintBalanceResponse){}
+  rpc PrintLog(Empty) returns(PrintLogResponse){}
+  rpc PrintPerformance(Empty) returns(PrintPerformanceResponse){}
+
+
+}
+
+message Empty{
+}
+
+message ServerStatus{
+  repeated int64 server_status=1;
+  repeated string contact_server_status=2;
+  repeated int64 byzantine_server_status = 3;
+}
+
+
+
+message Transaction {
+  int64 timestamp = 1;
+  int32 sender = 2;
+  int32 receiver = 3;
+  float amount = 4;
+  bool result = 5;
+}
+
+message TransferRequest {
+  Transaction txn = 1;
+  bytes signature_txn = 2;
+
+}
+
+
+message TransactionResponse {
+  string message = 1;
+  bool success = 2;
+}
+
+
+// STARTING LBFT FROM HERE
+
+message PreprepareMessage{
+  bool ack = 1;
+  int32 view = 2;
+  int32 seq_num = 3;
+  string digest = 4;
+  TransferRequest txn = 5;
+  string requestType = 6;
+}
+
+message PrepareMessage{
+  bool ack = 1;
+  int32 senderId = 2;
+  int32 view = 3;
+  int32 seq_num = 4;
+  string digest = 5;
+  bytes signature = 6;
+}
+
+// message signature{
+//   bytes signature=1;
+// }
+
+message PrepareResponse{
+  bool ack = 1;
+  int32 view = 2;
+  int32 seq_num = 3;
+  string digest = 4;
+  map<int32,bytes> certificate = 5;
+}
+
+message CommitMessage{
+  bool ack = 1;
+  int32 senderId = 2;
+  int32 view = 3;
+  int32 seq_num = 4;
+  string digest = 5;
+  bytes signature = 6;
+}
+
+message CommitResponse{
+  bool ack = 1;
+  int32 view = 2;
+  int32 seq_num = 3;
+  string digest = 4;
+  map<int32,bytes> certificate = 5;
+}
+
+message Reply {
+  int32 view = 1;
+  int32 viewLeader = 2;
+  int64 timestamp = 3;
+  int32 clientId= 4;
+  int32 serverId = 5;
+  bool result = 6;
+  bytes signature = 7;
+}
+
+
+message AckMessage {
+    bool success = 1;
+}
+
+message ViewChangeMessage {
+    int32 view = 1;              
+    int32 replica_id = 2;       
+    int32 stable_checkpoint = 3; 
+    bytes signature = 4;         
+    int32 senderId = 5;
+    bool ack = 6;
+    repeated PreprepareMessage preprepared =7;    
+
+}
+
+message NewViewMessage {
+    bool ack = 1;
+    int32 view = 2;                      
+    repeated ViewChangeMessage view_changes = 3; 
+    repeated PreprepareMessage pre_prepare_messages = 4; // PrePrepare messages needed to complete this view
+    bytes signature = 5;                   
+    int32 senderId = 6;
+}
+
+message repeatedViewChangeMessages{
+  repeated ViewChangeMessage viewchangeMsgs=1;
+  repeated PreprepareMessage new_preprepare_msgs=2;
+}
+
+message SyncedResponse{
+  string isSynced = 1;
+  map<int32,Transaction> commitedTxn = 2;
+  int64 ballot_num=3;
+}
+
+message csPrepareMsg{
+  string status=1;
+  TransferRequest clientReq = 2;
+  repeated CommitMessage commitMsg=3;
+}
+message csCommitMsg{
+  string status=1;
+  TransferRequest clientReq = 2;
+  repeated CommitMessage commitMsg=3;
+  bool consensusResult=4;
+}
+
+
+
+//2PC 
+
+message PCCommitMessage{
+  int32 txnCorresponding=1;
+}
+message PCAbortMessage{
+  int32 txnCorresponding=1;
+}
+message PCResponse{
+  bool ack =1;
+}
+
+
+//Print functions
+message printBalanceRequest{
+  int32 clientId = 1;
+}
+message PrintBalanceResponse{
+  int64 balance=1;
+}
+message PrintLogResponse{
+  repeated execTxn logs=1;
+}
+message execTxn  {
+	int32 TxID =1;
+  int32 seq_num=2;
+	Transaction  txn = 3;
+	string Status =4;
+}
+
+message PrintPerformanceResponse{
+  int64 total_transactions=1;
+  float total_latency=2;
+}
